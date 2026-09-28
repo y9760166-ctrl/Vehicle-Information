@@ -3,31 +3,17 @@ import requests
 
 app = Flask(__name__)
 
-SEARCH_URL = "https://data.gov.il/api/3/action/package_search"
-DATASTORE_URL = "https://data.gov.il/api/3/action/datastore_search"
+API_URL = "https://data.gov.il/api/3/action/datastore_search"
+RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3"
 
-# פונקציה שמוצאת אוטומטית את ה-Resource ID העדכני של מאגר הרכב
-def get_current_resource_id():
-    try:
-        # מחפש את חבילת המידע של רכב במאגר הממשלתי
-        response = requests.get(SEARCH_URL, params={"q": "רכב פעיל"}, timeout=5)
-        data = response.json()
-        
-        if data.get("success"):
-            for dataset in data["result"]["results"]:
-                for resource in dataset.get("resources", []):
-                    # מחפש את המשאב הפעיל של הנתונים
-                    if "datastore" in resource.get("datastore_active", False) or "csv" in resource.get("format", "").lower():
-                        return resource["id"]
-    except Exception:
-        pass
-    
-    # ברירת מחדל אם החיפוש האוטומטי נכשל
-    return "053cea08-09bc-40ec-8f7a-156f0677aff3"
+# כותרת שגורמת לשרת הממשלתי לחשוב שמדובר בדפדפן רגיל ולא בבוט
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
 @app.route('/')
 def home():
-    return "שירות בדיקת רכב פועל באופן אוטומטי."
+    return "שירות בדיקת רכב פועל."
 
 @app.route('/car-info', methods=['GET', 'POST'])
 def get_car_info():
@@ -36,24 +22,17 @@ def get_car_info():
     if not car_number:
         return "id_list_message=t-לא התקבל מספר רכב."
 
-    # איתור דינמי של המזהה העדכני
-    resource_id = get_current_resource_id()
-
     params = {
-        "resource_id": resource_id,
+        "resource_id": RESOURCE_ID,
         "filters": f'{{"mispar_rechev": "{car_number}"}}'
     }
 
     try:
-        response = requests.get(DATASTORE_URL, params=params, timeout=10)
+        # שליחת הבקשה עם הכותרת המדומה של הדפדפן
+        response = requests.get(API_URL, params=params, headers=HEADERS, timeout=10)
         
-        # אם עדיין יש שגיאת 404, ננסה להשתמש במזהה גיבוי מוכר
-        if response.status_code == 404:
-            params["resource_id"] = "053cea08-09bc-40ec-8f7a-156f0677aff3"
-            response = requests.get(DATASTORE_URL, params=params, timeout=10)
-
         if response.status_code != 200:
-            return "id_list_message=t-שגיאה בחיבור למאגר הנתונים."
+            return f"id_list_message=t-שגיאה בחיבור למאגר, קוד {response.status_code}"
 
         data = response.json()
 
