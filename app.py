@@ -3,13 +3,31 @@ import requests
 
 app = Flask(__name__)
 
-API_URL = "https://data.gov.il/api/3/action/datastore_search"
-# מזהה חלופי או מעודכן (אם המזהה הקודם פג תוקף)
-RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3"
+SEARCH_URL = "https://data.gov.il/api/3/action/package_search"
+DATASTORE_URL = "https://data.gov.il/api/3/action/datastore_search"
+
+# פונקציה שמוצאת אוטומטית את ה-Resource ID העדכני של מאגר הרכב
+def get_current_resource_id():
+    try:
+        # מחפש את חבילת המידע של רכב במאגר הממשלתי
+        response = requests.get(SEARCH_URL, params={"q": "רכב פעיל"}, timeout=5)
+        data = response.json()
+        
+        if data.get("success"):
+            for dataset in data["result"]["results"]:
+                for resource in dataset.get("resources", []):
+                    # מחפש את המשאב הפעיל של הנתונים
+                    if "datastore" in resource.get("datastore_active", False) or "csv" in resource.get("format", "").lower():
+                        return resource["id"]
+    except Exception:
+        pass
+    
+    # ברירת מחדל אם החיפוש האוטומטי נכשל
+    return "053cea08-09bc-40ec-8f7a-156f0677aff3"
 
 @app.route('/')
 def home():
-    return "שירות בדיקת רכב פועל."
+    return "שירות בדיקת רכב פועל באופן אוטומטי."
 
 @app.route('/car-info', methods=['GET', 'POST'])
 def get_car_info():
@@ -18,20 +36,24 @@ def get_car_info():
     if not car_number:
         return "id_list_message=t-לא התקבל מספר רכב."
 
+    # איתור דינמי של המזהה העדכני
+    resource_id = get_current_resource_id()
+
     params = {
-        "resource_id": RESOURCE_ID,
+        "resource_id": resource_id,
         "filters": f'{{"mispar_rechev": "{car_number}"}}'
     }
 
     try:
-        response = requests.get(API_URL, params=params, timeout=10)
+        response = requests.get(DATASTORE_URL, params=params, timeout=10)
         
-        # טיפול ספציפי בשגיאת 404 מהמאגר
+        # אם עדיין יש שגיאת 404, ננסה להשתמש במזהה גיבוי מוכר
         if response.status_code == 404:
-            return "id_list_message=t-מאגר הנתונים הממשלתי אינו זמין כרגע או שהכתובת שונתה."
-            
+            params["resource_id"] = "053cea08-09bc-40ec-8f7a-156f0677aff3"
+            response = requests.get(DATASTORE_URL, params=params, timeout=10)
+
         if response.status_code != 200:
-            return f"id_list_message=t-שגיאה בתקשורת מול המאגר."
+            return "id_list_message=t-שגיאה בחיבור למאגר הנתונים."
 
         data = response.json()
 
