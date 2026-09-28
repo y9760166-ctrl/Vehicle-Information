@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import requests
 
 app = Flask(__name__)
@@ -28,13 +28,13 @@ def get_car_info():
         if data.get("success") and data["result"]["records"]:
             car = data["result"]["records"][0]
             
-5            # איסוף ומיצוי כלל הפרטים של הרכב
+            # איסוף ומיצוי כלל הפרטים של הרכב
             mispar_rechev = car.get("mispar_rechev", "לא ידוע")
             tozeret = car.get("tozeret_nm", "לא ידוע")
             kinuy_mishari = car.get("kinuy_mishari", "לא ידוע")
             shnat_yitzur = car.get("shnat_yitzur", "לא ידוע")
             tzeva = car.get("tzeva_rechev", "לא ידוע")
-            sug_דלק = car.get("sug_delek_nm", "לא ידוע")
+            sug_delek = car.get("sug_delek_nm", "לא ידוע")
             moed_aliya = car.get("moed_aliyah_lakvish", "לא ידוע")
             kvutzat_zihum = car.get("kvutzat_zihum", "לא ידוע")
             baalut = car.get("baalut", "לא ידוע")
@@ -46,7 +46,7 @@ def get_car_info():
                 f"דגם: {kinuy_mishari}. "
                 f"שנת ייצור: {shnat_yitzur}. "
                 f"צבע: {tzeva}. "
-                f"סוג דלק: {sug_דלק}. "
+                f"סוג דלק: {sug_delek}. "
                 f"מועד עליה לכביש: {moed_aliya}. "
                 f"קבוצת זיהום: {kvutzat_zihum}. "
                 f"סוג בעלות: {baalut}."
