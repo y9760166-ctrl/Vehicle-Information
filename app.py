@@ -3,14 +3,13 @@ import requests
 
 app = Flask(__name__)
 
-# כתובת ה-API המעודכנת של מאגר הנתונים הממשלתי
 API_URL = "https://data.gov.il/api/3/action/datastore_search"
-# מזהה המאגר המעודכן לכלי רכב פעילים
+# מזהה חלופי או מעודכן (אם המזהה הקודם פג תוקף)
 RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3"
 
 @app.route('/')
 def home():
-    return "שירות בדיקת רכב פעיל פועל בהצלחה."
+    return "שירות בדיקת רכב פועל."
 
 @app.route('/car-info', methods=['GET', 'POST'])
 def get_car_info():
@@ -27,9 +26,12 @@ def get_car_info():
     try:
         response = requests.get(API_URL, params=params, timeout=10)
         
-        # אם התקבל קוד שגיאה מהמאגר הממשלתי
+        # טיפול ספציפי בשגיאת 404 מהמאגר
+        if response.status_code == 404:
+            return "id_list_message=t-מאגר הנתונים הממשלתי אינו זמין כרגע או שהכתובת שונתה."
+            
         if response.status_code != 200:
-            return f"id_list_message=t-שגיאה בחיבור למאגר, קוד שגיאה {response.status_code}"
+            return f"id_list_message=t-שגיאה בתקשורת מול המאגר."
 
         data = response.json()
 
@@ -54,7 +56,7 @@ def get_car_info():
             return "id_list_message=t-לא נמצאו פרטים עבור מספר רכב זה במאגר."
 
     except Exception as e:
-        return "id_list_message=t-אירעה שגיאה פנימית בעיבוד הנתונים."
+        return "id_list_message=t-אירעה שגיאה בעיבוד הנתונים."
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
