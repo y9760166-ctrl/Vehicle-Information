@@ -3,31 +3,17 @@ import requests
 
 app = Flask(__name__)
 
-SEARCH_URL = "https://data.gov.il/api/3/action/package_search"
+# כתובת ה-API של מאגר הנתונים הממשלתי
 DATASTORE_URL = "https://data.gov.il/api/3/action/datastore_search"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-}
+# מזהה המאגר הרשמי של רכבים פרטיים ומסחריים פעילים
+RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3"
 
-def get_current_resource_id():
-    # ננסה קודם כל לחפש את המזהה העדכני של מאגר הרכב הפעיל
-    try:
-        response = requests.get(SEARCH_URL, params={"q": "רכב פעיל"}, headers=HEADERS, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                for dataset in data["result"]["results"]:
-                    title = dataset.get("title", "")
-                    if "רכב" in title and "פעיל" in title:
-                        for resource in dataset.get("resources", []):
-                            if resource.get("format", "").upper() in ["CSV", "API", "JSON"] or "datastore" in resource.get("datastore_active", False):
-                                return resource["id"]
-    except Exception:
-        pass
-    
-    # מזהה קבוע מעודכן למאגר הרכב הפעיל של משרד התחבורה
-    return "053cea08-09bc-40ec-8f7a-156f0677aff3"
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7"
+}
 
 @app.route('/')
 def home():
@@ -40,21 +26,21 @@ def get_car_info():
     if not car_number:
         return "id_list_message=t-לא התקבל מספר רכב."
 
-    resource_id = get_current_resource_id()
-
     params = {
-        "resource_id": resource_id,
+        "resource_id": RESOURCE_ID,
         "filters": f'{{"mispar_rechev": "{car_number}"}}'
     }
 
     try:
+        # שליחת הבקשה עם כותרות מורחבות
         response = requests.get(DATASTORE_URL, params=params, headers=HEADERS, timeout=10)
         
-        # אם קיבלנו 404, ננסה לבצע בקשה נוספת עם מזהה חלופי נפוץ נוסף במקום להחזיר שגיאה מיד
+        # הדפסת לוג בקונסול של Render כדי שנראה בדיוק מה קורה
+        print(f"Status Code: {response.status_code}")
+        print(f"Response Text: {response.text[:200]}")
+
         if response.status_code == 404:
-            alt_resource_id = "f6934e89-49d7-48f8-b398-f2b7c6c44933"
-            params["resource_id"] = alt_resource_id
-            response = requests.get(DATASTORE_URL, params=params, headers=HEADERS, timeout=10)
+            return "id_list_message=t-שגיאת חיבור 404. ייתכן ששרת הענן נחסם על ידי המאגר הממשלתי."
 
         if response.status_code != 200:
             return f"id_list_message=t-שגיאה בחיבור למאגר, קוד {response.status_code}"
@@ -82,6 +68,7 @@ def get_car_info():
             return "id_list_message=t-לא נמצאו פרטים עבור מספר רכב זה במאגר."
 
     except Exception as e:
+        print(f"Error: {str(e)}")
         return "id_list_message=t-אירעה שגיאה בעיבוד הנתונים."
 
 if __name__ == '__main__':
